@@ -56,11 +56,33 @@ public class Main {
                     break;
         		}
         		case 2: { //Generar parser
-        			
+        		
         			break;
         		}
         		case 3: { //Escanear archivo
-        			
+        			String archivo = "prueba.txt";
+                    System.out.print("\nIndique el nombre del archivo de prueba: ");
+                    archivo = entrada.next();
+                    String path = "C:/Users/Gaby/Desktop/JFlexScanner/JFlexScanner/src/scanner/";
+                    BufferedReader bufferedReader = null;
+                    try {
+                        bufferedReader = new BufferedReader(new FileReader(archivo));
+                        Scanner scanner = new Scanner(bufferedReader);
+                        Yytoken token = null;
+                        do {
+                            token = scanner.nextToken();
+                            System.out.println(token);
+                        } while (token != null);
+                    } catch (Exception ex) {
+                        Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                    } finally {
+                        try {
+                            bufferedReader.close();
+                        } catch (IOException ex) {
+                            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+                    System.out.println("\nEjecución finalizada.\n");
         			break;
         		}
         		case 4: { //Parsear archivo

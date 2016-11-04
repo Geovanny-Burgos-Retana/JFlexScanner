@@ -49,7 +49,7 @@ class Yytoken {
     private int contador;
     private ArrayList<Yytoken> tokens;
 
-	private void writeOutputFile() throws IOException{
+	private void writeOutputFile() throws IOExceptionn {
 			String filename = "file.out";
 			BufferedWriter out = new BufferedWriter(
 				new FileWriter(filename));
