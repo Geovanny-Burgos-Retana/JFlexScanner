@@ -1,26 +1,82 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Main.java - Main del programa. Elegir si generar el Scanner o ejecutar un archivo
  */
 package scanner;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-
-/**
- *
- * @author Gaby
- */
 public class Main {
 
-    /**
-     * @param args the command line arguments
-     */
     public static void main(String[] args) {
-        String path = "C:/Users/Gaby/Desktop/JFlexScanner/JFlexScanner/src/scanner/Scanner.flex";
-        File file = new File(path);
-        jflex.Main.generate(file);
+        int opcion = 0;
+        boolean salir = false;
+        java.util.Scanner entrada = new java.util.Scanner(System.in);
+        while (!salir){
+            System.out.println("Menú principal:");
+            System.out.println("1. Generar Scanner");
+            System.out.println("2. Generar Parser");
+            System.out.println("3. Escanear archivo");
+            System.out.println("4. Parsear archivo");
+            System.out.println("5. Cerrar");
+            System.out.print("Seleccione una opción: ");
+            opcion = entrada.nextInt();
+        	switch(opcion) {
+        		case 1: { //Generar scanner
+                    String archivoLex = "scanner.flex";
+                    System.out.print("\nIndique el nombre del archivo: ");
+                    archivoLex = entrada.next();
+                    String path = "C:/Users/Gaby/Desktop/JFlexScanner/JFlexScanner/src/scanner/";
+                    File file = new File(path + archivoLex);
+                    jflex.Main.generate(file); //Generar el archivo
+                    /*File arch = new File("Scanner.java");
+                    if(arch.exists()){
+                        System.out.println("" + arch);
+                        Path currentRelativePath = Paths.get("");
+                        String nuevoDir = currentRelativePath.toAbsolutePath().toString()
+                                + File.separator + "src" + File.separator 
+                                + "scanner" + File.separator + arch.getName();
+                        File archViejo = new File(nuevoDir);
+                        archViejo.delete();
+                        if(arch.renameTo(new File(nuevoDir))){
+                            System.out.println("\nGenerado.");
+                            System.exit(0);
+                        }else{
+                            System.out.println("\nError generando.");
+                        }
+                    }else{
+                        System.out.println("\nArchivo no existe.");
+                    }*/
+                    break;
+        		}
+        		case 2: { //Generar parser
+        			
+        			break;
+        		}
+        		case 3: { //Escanear archivo
+        			
+        			break;
+        		}
+        		case 4: { //Parsear archivo
+        			
+        			break;
+        		}
+        		case 5: { //Salir
+        			salir = true;
+        			break;
+        		}
+        		default: {
+        			System.out.println("Opción inválida.");
+        			break;
+        		}
+        	}
+        }
     }
     
 }
