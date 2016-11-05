@@ -88,6 +88,8 @@ espacio = " "
 char = '.'
 salto = \n|\r|\r\n
 whitespace = [ \n\t]
+comentario = \{({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\}
+comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
 
 //Reglas léxicas
 %%
@@ -115,6 +117,13 @@ whitespace = [ \n\t]
 	Yytoken t = new Yytoken(contador,yytext(),"Número real negativo",yyline,yycolumn);
     tokens.add(t);
     return t;
+}
+//Comentarios
+{comentario} {
+	//Ignorar
+}
+{comentario2} {
+	//Ignorar
 }
 //Palabras reservadas
 "and" {
