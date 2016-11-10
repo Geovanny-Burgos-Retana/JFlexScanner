@@ -12,7 +12,7 @@ class Yytoken {
     public int linea;
     public int columna;
 
-    Yytoken (int numToken,String token, String tipo, int linea, int columna) {
+    Yytoken (int numToken, String token, String tipo, int linea, int columna) {
         //Contador para el número de tokens reconocidos
         this.numToken = numToken;
         //String del token reconocido
@@ -26,8 +26,16 @@ class Yytoken {
     }   
     //Metodo que devuelve los datos necesarios que escribiremos en un archive de salida
     public String toString() {
-        return "Token #"+numToken+": "+token+" C.Lexico: "+tipo+" ["+linea
+        return "#" + numToken + ": " + token + " \tTipo: " + tipo + " ["+linea
         + "," +columna + "]";
+    }
+
+    public String getTipo() {
+        return this.tipo;
+    }
+
+    public String getToken() {
+        return this.token;
     }
 }
 
@@ -37,35 +45,55 @@ class Yytoken {
 %public
 %class Scanner
 %unicode //Soporte para Unicode
+%caseless
+%ignorecase
 
 %{
     private int contador;
     private ArrayList<Yytoken> tokens;
+    private int contadorErrores;
+    private ArrayList<Yytoken> errores;
 
 	private void writeOutputFile() throws IOException {
 		String filename = "file.out";
 		BufferedWriter out = new BufferedWriter(
 			new FileWriter(filename));
-        System.out.println("\nTokens guardados en archivo\n");
+        //System.out.println("\nTokens guardados en archivo\n");
 		for(Yytoken t: this.tokens){
-			System.out.println(t);
+			//System.out.println(t);
 			out.write(t + "\n");
 		}
 		out.close();
 	}
+
+        public ArrayList<Yytoken> getErrores(){
+            return errores;
+        }
+
+        public ArrayList<Yytoken> getTokens(){
+            return tokens;
+        }
+
+        public void imprimirErrores() {
+            for (Yytoken error : errores) {
+                System.out.println(error);
+            }
+        }
 %}
 
 //Contador para los tokens
 %init{
     contador = 0;
 	tokens = new ArrayList<Yytoken>();
+    contadorErrores = 0;
+    errores = new ArrayList<Yytoken>();
 %init}
 
 //Cuando se alcanza el fin del archivo de entrada
 %eof{
 	try{
-		this.writeOutputFile();
-        System.exit(0);
+        this.writeOutputFile();
+        //System.exit(0);
 	}catch(IOException ioe){
 		ioe.printStackTrace();
 	}
@@ -79,29 +107,29 @@ letra = [A-Za-z]
 digito = [0-9]
 alfanumerico = {letra}|{digito}
 other_id_char = [_]
-identificador = {letra}({alfanumerico}|{other_id_char})*
+identificador = ({letra}|{other_id_char})({alfanumerico}|{other_id_char})*
 entero = ({digito})+
 enteroNegativo = \-{entero}
 real = {entero}\.{entero}
 realNegativo = \-{real}
 espacio = " "
-char = '.'
 salto = \n|\r|\r\n
 whitespace = [ \n\t]
-comentario = \{({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\}
-comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
+//comentario2 = {parentesisIzq}\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*{parentesisDer}
+//comentario = \/\/({letra}|{digito}|{other_id_char}|{espacio})*{salto}
 
 //Reglas léxicas
 %%
+//Numeros
 {entero} {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Número entero",yyline,yycolumn);
+    contador++;
+    Yytoken t = new Yytoken(contador,yytext(),"Número entero",yyline,yycolumn);
     tokens.add(t);
     return t;
 }
 {real} {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Número real",yyline,yycolumn);
+    contador++;
+    Yytoken t = new Yytoken(contador,yytext(),"Número real",yyline,yycolumn);
     tokens.add(t);
     return t;
 }
@@ -119,11 +147,26 @@ comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
     return t;
 }
 //Comentarios
-{comentario} {
+"//".*  {
+    //Ignorar
+}
+[(][*][^*]*[*]+([^*/][^*]*[*]+)*[)] {
 	//Ignorar
 }
-{comentario2} {
-	//Ignorar
+[(][*] {
+    contadorErrores++;
+    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Comentario no terminado", yyline, yycolumn);
+    errores.add(t);
+    return t;
+}
+"{".*"}" {
+    //Ignorar
+}
+"{" {
+    contadorErrores++;
+    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Comentario no terminado", yyline, yycolumn);
+    errores.add(t);
+    return t;
 }
 //Palabras reservadas
 "and" {
@@ -426,12 +469,24 @@ comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
     tokens.add(t);
     return t;
 }
-//Identificador
+
+//Identificador------------------------------------------------------------------------------
 {identificador} {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Identificador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
+    if (yylength() <= 127) {
+        if ( !tokens.contains(yytext().toLowerCase()) ) {
+            contador++;
+            Yytoken t = new Yytoken(contador,yytext().toLowerCase(),"Identificador",yyline,yycolumn);
+            tokens.add(t);
+            return t;
+        }
+        
+    }
+    else { //Si es mayor de 127 caracteres
+        contadorErrores++;
+        Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Nombre de variable muy grande", yyline, yycolumn);
+        errores.add(t);
+        return t;
+    }
 }
 //Operadores
 "," {
@@ -442,7 +497,7 @@ comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
 }
 ";" {
 	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
+	Yytoken t = new Yytoken(contador,yytext(),"Semicolon",yyline,yycolumn);
     tokens.add(t);
     return t;
 }
@@ -542,6 +597,18 @@ comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
     tokens.add(t);
     return t;
 }
+/*"{" {
+    contador++;
+    Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
+    tokens.add(t);
+    return t;
+}
+"}" {
+    contador++;
+    Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
+    tokens.add(t);
+    return t;
+}*/
 ":=" {
 	contador++;
 	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
@@ -621,12 +688,9 @@ comentario2 = \(\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*\)
     tokens.add(t);
     return t;
 }
-
-
-/*{whitespace} {}
-
-{letra}({letra}|{digito})* {lexeme=yytext(); 
-                                return ID;}
-("(-"{digito}+")")|{digito}+ {lexeme=yytext(); 
-                                return INT;}
-. {return ERROR;}*/
+. {
+    contadorErrores++;
+    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR", yyline, yycolumn);
+    errores.add(t);
+    return t;
+}

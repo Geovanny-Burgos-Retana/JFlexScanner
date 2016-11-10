@@ -41,4 +41,4 @@ X: CHAR ;    { esta  X deberia salir junto con la primera porque no es case sens
 
 
 (* COMENTARIO NO CERRADO
-                DEBE DAR ERROR
+                DEBE DAR ERROR 
