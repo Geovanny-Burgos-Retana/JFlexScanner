@@ -1,12 +1,14 @@
 package scanner;
 
+import java_cup.runtime.*;
+import java.io.Reader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
 class Yytoken {
-	public int numToken;
+    public int numToken;
     public String token;
     public String tipo;
     public int linea;
@@ -38,33 +40,32 @@ class Yytoken {
         return this.token;
     }
 }
-
-
+      
 %%
-%function nextToken
 %public
 %class Scanner
 %unicode //Soporte para Unicode
 %caseless
 %ignorecase
-
+%cup //Compatibilidad con CUP
+   
 %{
     private int contador;
     private ArrayList<Yytoken> tokens;
     private int contadorErrores;
     private ArrayList<Yytoken> errores;
 
-	private void writeOutputFile() throws IOException {
-		String filename = "file.out";
-		BufferedWriter out = new BufferedWriter(
-			new FileWriter(filename));
+    private void writeOutputFile() throws IOException {
+        String filename = "file.out";
+        BufferedWriter out = new BufferedWriter(
+            new FileWriter(filename));
         //System.out.println("\nTokens guardados en archivo\n");
-		for(Yytoken t: this.tokens){
-			//System.out.println(t);
-			out.write(t + "\n");
-		}
-		out.close();
-	}
+        for(Yytoken t: this.tokens){
+            //System.out.println(t);
+            out.write(t + "\n");
+        }
+        out.close();
+    }
 
         public ArrayList<Yytoken> getErrores(){
             return errores;
@@ -79,618 +80,88 @@ class Yytoken {
                 System.out.println(error);
             }
         }
+
+    /*  Generamos un java_cup.Symbol para guardar el tipo de token encontrado */
+    private Symbol symbol(int type) {
+        return new Symbol(type, yyline, yycolumn);
+    }
+    
+    /* Generamos un Symbol para el tipo de token encontrado junto con su valor */
+    private Symbol symbol(int type, Object value) {
+        return new Symbol(type, yyline, yycolumn, value);
+    }
 %}
+   
 
-//Contador para los tokens
-%init{
-    contador = 0;
-	tokens = new ArrayList<Yytoken>();
-    contadorErrores = 0;
-    errores = new ArrayList<Yytoken>();
-%init}
+//Declaraciones-----------------------------------------------------
 
-//Cuando se alcanza el fin del archivo de entrada
-%eof{
-	try{
-        this.writeOutputFile();
-        //System.exit(0);
-	}catch(IOException ioe){
-		ioe.printStackTrace();
-	}
-%eof}
-
-%line //Activar el contador de lineas, variable yyline
-%column //Activar el contador de columna, variable yycolumn
-//Fin de opciones
-
-letra = [A-Za-z]
-digito = [0-9]
-alfanumerico = {letra}|{digito}
+letra =         [A-Za-z]
+digito =        [0-9]
+alfanumerico =  {letra}|{digito}
 other_id_char = [_]
 identificador = ({letra}|{other_id_char})({alfanumerico}|{other_id_char})*
-entero = ({digito})+
+entero =        0 | [1-9][0-9]*
+parteDecimal =  ({digito})+
 enteroNegativo = \-{entero}
-real = {entero}\.{entero}
-realNegativo = \-{real}
-espacio = " "
-salto = \n|\r|\r\n
-whitespace = [ \n\t]
-//comentario2 = {parentesisIzq}\*({letra}|{digito}|{other_id_char}|{salto}|{espacio})*\*{parentesisDer}
-//comentario = \/\/({letra}|{digito}|{other_id_char}|{espacio})*{salto}
+real =          {entero}\.{parteDecimal}
+realNegativo =  \-{real}
+salto =         \n|\r|\r\n
+whitespace =    [ \n\t]
+espacio=        {salto} | [ \t\f]
 
-//Reglas léxicas
-%%
-//Numeros
-{entero} {
-    contador++;
-    Yytoken t = new Yytoken(contador,yytext(),"Número entero",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-{real} {
-    contador++;
-    Yytoken t = new Yytoken(contador,yytext(),"Número real",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-{enteroNegativo} {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Número entero negativo",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
+%% //fin de opciones
 
-{realNegativo} {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Número real negativo",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-//Comentarios
-"//".*  {
-    //Ignorar
-}
-[(][*][^*]*[*]+([^*/][^*]*[*]+)*[)] {
-	//Ignorar
-}
-[(][*] {
-    contadorErrores++;
-    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Comentario no terminado", yyline, yycolumn);
-    errores.add(t);
-    return t;
-}
-"{".*"}" {
-    //Ignorar
-}
-"{" {
-    contadorErrores++;
-    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Comentario no terminado", yyline, yycolumn);
-    errores.add(t);
-    return t;
-}
-//Palabras reservadas
-"and" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"array" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"begin" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"boolean" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"byte" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"case" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"char" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"const" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"div" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"do" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"downto" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"else" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"end" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"false" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"file" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"for" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"forward" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"function" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"goto" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"if" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"in" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"inline" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"int" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"label" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"longint" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"mod" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"nil" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"not" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"of" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"or" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"packed" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"procedure" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"program" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"read" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"real" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"record" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"repeat" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"set" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"shortint" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"string" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"then" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"to" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"true" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"type" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"until" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"var" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"while" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"with" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"write" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"xor" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Palabra reservada, operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
 
-//Identificador------------------------------------------------------------------------------
-{identificador} {
-    if (yylength() <= 127) {
-        if ( !tokens.contains(yytext().toLowerCase()) ) {
-            contador++;
-            Yytoken t = new Yytoken(contador,yytext().toLowerCase(),"Identificador",yyline,yycolumn);
-            tokens.add(t);
-            return t;
+// Reglas léxicas---------------------------------------------------
+   
+/*
+   Esta seccion contiene expresiones regulares y acciones. 
+   Las acciones son código en Java que se ejecutara cuando se
+   encuentre una entrada valida para la expresion regular correspondiente */
+   
+   /* YYINITIAL es el estado inicial del analizador lexico al escanear.
+      Las expresiones regulares solo serán comparadas si se encuentra
+      en ese estado inicial. Es decir, cada vez que se encuentra una 
+      coincidencia el scanner vuelve al estado inicial. Por lo cual se ignoran
+      estados intermedios.*/
+   
+<YYINITIAL> {
+   
+    ";" { 
+            return symbol(sym.SEMI); 
         }
-        
-    }
-    else { //Si es mayor de 127 caracteres
-        contadorErrores++;
-        Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR - Nombre de variable muy grande", yyline, yycolumn);
-        errores.add(t);
-        return t;
-    }
+    "+" {
+            System.out.print(" + ");
+            return symbol(sym.OP_SUMA); 
+        }
+    "-" {
+            System.out.print(" - ");
+            return symbol(sym.OP_RESTA); 
+        }
+    "*" {  
+            System.out.print(" * ");
+            return symbol(sym.OP_MULT); 
+        }
+    "(" {
+            System.out.print(" ( ");
+            return symbol(sym.PARENIZQ); 
+        }
+    ")" { 
+            System.out.print(" ) ");
+            return symbol(sym.PARENDER); 
+        }
+    {entero} {
+            System.out.print(yytext()); 
+            return symbol(sym.ENTERO, new Integer(yytext())); 
+        }
+    {espacio} { 
+        //Ignorar 
+    } 
 }
-//Operadores
-"," {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-";" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Semicolon",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"++" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"--" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-">=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-">" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"<=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"<" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"<>" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"+" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"-" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"*" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"/" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"(" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-")" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"[" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"]" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-/*"{" {
-    contador++;
-    Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"}" {
-    contador++;
-    Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}*/
-":=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"." {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-":" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"+=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"-=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"*=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"/=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-">>" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"<<" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-"<<=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-">>=" {
-	contador++;
-	Yytoken t = new Yytoken(contador,yytext(),"Operador",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-//Otros
-{espacio} {
- 	//ignorar
-}
-{whitespace} {
-	//Ignorar
-}
-{salto} {
-    contador++;
-    Yytoken t = new Yytoken(contador,"","fin linea",yyline,yycolumn);
-    tokens.add(t);
-    return t;
-}
-. {
-    contadorErrores++;
-    Yytoken t = new Yytoken(contadorErrores, yytext(), "ERROR", yyline, yycolumn);
-    errores.add(t);
-    return t;
-}
+
+
+/* Si el token contenido en la entrada no coincide con ninguna regla
+    entonces se marca un token ilegal */
+    [^] { 
+            throw new Error("Caracter ilegal <"+yytext()+">"); 
+        }
