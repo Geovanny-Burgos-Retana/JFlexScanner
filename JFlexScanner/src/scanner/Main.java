@@ -52,17 +52,18 @@ public class Main {
                 }
                 case 2: { //Ejecutar
                     String[] archivoPrueba = {"test.txt"};
-                    //Parser.main(archivoPrueba);
-                    System.out.println("Ejecutado!");
+                    Parser.main(archivoPrueba);
+                    System.out.println("\nEjecutado!");
+                    System.exit(0);
                     break;
                 }
                 case 3: { //Salir
                     salir = true;
-                    System.out.println("Gurbai!");
+                    System.out.println("\nGurbai!");
                     break;
                 }
                 default: {
-                    System.out.println("Opción inválida.");
+                    System.out.println("\nOpción inválida.");
                     break;
                 }
             }

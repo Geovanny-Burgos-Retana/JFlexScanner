@@ -1,3 +1,13 @@
-2*3;2+3*3;
-4*4+2;
-3*(2+3*4)+1;
+{Programa de prueba}
+PROGRAM eeee
+
+CONST
+dd,ff: STRING;
+ee: REAL;
+e3: INT;
+
+BEGIN
+
+VARe
+
+END

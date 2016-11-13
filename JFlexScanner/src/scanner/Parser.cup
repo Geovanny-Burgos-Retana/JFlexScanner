@@ -2,27 +2,73 @@ package scanner;
 
 import java_cup.runtime.*;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
+import java_cup.runtime.XMLElement;
 
 /* Codigo del parser, manejo de errores. */
 parser code {:
-    /* Reporte de error encontrado. */
-    public void report_error(String message, Object info) {
-        StringBuilder m = new StringBuilder("Error");
+    private int contadorErrores = 0;
+    private ArrayList<String> errores = new ArrayList<String>();
+
+    @Override
+    public void syntax_error(Symbol cur_token){
+        try{
+            //System.err.println("Error de sintaxis en el token: " + cur_token.value.toString() + ".");
+            reportar_error("Error de sintaxis en token " + cur_token.value.toString() + ".", cur_token);
+        }catch(Exception E){}
+    }
+    @Override
+    public void unrecovered_syntax_error(Symbol cur_token){
+        if(cur_token == null || cur_token.value == null) { //No se encontró token END
+            reportar_error("Error fatal de sintaxis al final del programa.", null);
+        }
+        else { //Por si acaso
+            reportar_error("Error fatal de sintaxis en " + cur_token.value.toString(), cur_token);
+        }
+        
+    }
+
+    public void imprimirErrores() {
+        System.out.println("\nErrores sintácticos: ");
+        for (String error : errores) {
+            System.out.println(error);
+        }
+        //System.out.println(errores.size());
+    }
+
+    public void reportar_error(String message, Object info) {
+        contadorErrores++;
+        StringBuilder m = new StringBuilder("Error #" + contadorErrores);
         if (info instanceof java_cup.runtime.Symbol) {
             java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
             if (s.left >= 0) {                
-                m.append(" in line "+(s.left+1));
+                m.append(" en la línea "+(s.left+1));
                 if (s.right >= 0)
-                    m.append(", column "+(s.right+1));
+                    m.append(", columna "+(s.right+1));
             }
         }
-        m.append(" : "+message);
-        System.err.println(m);
+        m.append(" : " + message);
+        errores.add(m.toString());
+        //System.err.println(m);
+        //System.out.println(m);
+    }
+    public void append_error(String message) {
+        int lastIndex = errores.size() - 1;
+        String texto = errores.get(lastIndex);
+        errores.set(lastIndex, texto + "\n\t" + message);
+    }
+
+    /* Reporte de error encontrado. */
+    @Override
+    public void report_error(String message, Object info) {
+        reportar_error(message, info);
     }
    
     /* Cuando se encuentra un error de donde el sistema no puede
         recuperarse, se lanza un error fatal. Se despliega el mensaje
         de error y se finaliza la ejecución. */
+    @Override
     public void report_fatal_error(String message, Object info) {
         report_error(message, info);
         System.exit(1);
@@ -33,10 +79,14 @@ parser code {:
        de simbolos correspondiente. */
     public static void main(String[] args){
         try {
-            Parser asin = new Parser(
-                    new Scanner( new FileReader(args[0])));
-            Object result = asin.parse().value;
-            System.out.println("\nResultados finales:");
+            //System.out.println("\nResultados finales:");
+            Scanner scanner = new Scanner(new FileReader(args[0]));
+            Parser parser = new Parser(scanner);
+            //Object result = parser.parse().value;
+            Symbol parse_tree = null;
+            parse_tree = parser.parse();
+            scanner.imprimirErrores();
+            parser.imprimirErrores();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -47,53 +97,105 @@ parser code {:
 /* Terminales----------------------------------------------------- 
    Los terminales que no tienen un valor son listados primero, los terminales que
    tienen un valor como los enteros son listados en la segunda o demas lineas. */
-    terminal    SEMI, OP_SUMA, OP_RESTA, OP_MULT, PARENIZQ, PARENDER;
+    terminal 
+        //Tipos
+        TIPO_ARRAY, TIPO_BOOLEAN, TIPO_BYTE, TIPO_CHAR, TIPO_CONST, TIPO_INT,
+        TIPO_LONGINT, TIPO_NIL, TIPO_REAL, TIPO_SHORTINT, TIPO_STRING,
+        //Palabras reservadas
+        PR_BEGIN, PR_CASE,  PR_DO, PR_DOWNTO, PR_ELSE, PR_END, PR_FALSE, 
+        PR_FILE, PR_FOR, PR_FORWARD, PR_FUNCTION, PR_GOTO, PR_IF, PR_IN,
+        PR_INLINE, PR_LABEL, PR_OF, PR_PACKED, PR_PROCEDURE,  PR_THEN,
+        PR_PROGRAM, PR_READ, PR_RECORD, PR_REPEAT, PR_SET, PR_TO, PR_TRUE,
+        PR_TYPE, PR_UNTIL, PR_VAR, PR_WHILE, PR_WITH, PR_WRITE,
+        //Operadores
+        OP_AND, OP_DIV, OP_NOT, OP_MOD, OP_OR, OP_XOR, OP_COMA, SEMI, 
+        OP_SUMASUMA, OP_MENOSMENOS, OP_MAYORIGUAL, OP_MAYOR, OP_MENORIGUAL, 
+        OP_MENOR, OP_MENORMAYOR, OP_IGUAL, OP_SUMA, OP_RESTA, OP_MULT, 
+        OP_DIVISION, PARENTIZQ, PARENTDER, OP_BRACKETIZQ, OP_BRACKETDER, 
+        OP_DOSPUNTOSIGUAL, OP_PUNTO, OP_DOSPUNTOS, OP_MASIGUAL, OP_MENOSIGUAL, 
+        OP_MULTIGUAL, OP_DIVIGUAL, OP_MAYORMAYOR, OP_MENORMENOR, 
+        OP_MENORMENORIGUAL, OP_MAYORMAYORIGUAL,
+        //Identificador
+        IDENTIFICADOR;
     terminal Integer    ENTERO;
     terminal Double 	REAL;
+    terminal String     STRING;
 
 /* No terminales-------------------------------------------------- 
    Primero se lista los no terminales que tienen un valor Object y despues
    se lista los no terminales que tienen un entero. Un Object se refiere a que
    no tienen tipo, pudiendo ser entero o String. */
-    non terminal Object     expr_list, expr_part;
-    non terminal Integer    expr, factor, termino;
+    /*non terminal Object     expr_init, expr_list, expr_part;
+    non terminal Integer    expr, factor, termino;*/
+    non terminal Object 
+        //Declaración inicial
+        declaracion_programa,
+        //Secciones iniciales
+        secciones_opcionales,
+        tipo,
+        seccion_const, seccion_const1, declaracion_const,
+        seccion_funciones,
+        //Cuerpo del programa
+        seccion_instrucciones
+        
+        ;
 
 /* Precedencia y asociación de terminales-------------------------*/
+/*precedence nonassoc DOTS, LPAR, LSQRBRK;
+
+precedence left PLUSOP, MINUSOP; 
+precedence left DIVOP; */
 
 /* Gramática------------------------------------------------------*/
-/* 'expr_list' es la raiz de la gramatica. Una 'expr_list' puede ser una 'expr_list'
-   seguida de una expr_part, o puede ser una expr_part.
-   Un terminal o no terminal se define <termino> ::= termino1 termino2 ... terminoN.;
-   donde termino puede ser terminal o no terminal, solo se permite un simbolo a la
-   izquierda. La | sirve para indicar que es una produccion u otra.
-   Debemos pasar de simbolos no terminales a simbolos terminales. Una gramatica que no
-   termina en simbolos terminales se dice que no reduce, y por lo tanto nunca se finaliza
-   su procesado.
-*/
-   
-    expr_list ::= expr_list expr_part
-                  |
-                  expr_part
-                  ;
-/* 'expr_part' se compone de una expr seguida de SEMI, o de una asign seguida de SEMI.
-   asign:a esta estableciendo que a representa al objeto asociado a asign, entre {: :}
-   se coloca el sodigo en java para las acciones a tomar al cumplirse una produccion.
-*/
-   
-   expr_part ::= expr:e
-                {:
-                System.out.println(" = " + e); 
-                :} 
-                SEMI
-                ;
-                  
+    start with declaracion_programa;  
+
+    declaracion_programa ::= PR_PROGRAM IDENTIFICADOR PR_BEGIN seccion_instrucciones PR_END
+        | PR_PROGRAM IDENTIFICADOR secciones_opcionales PR_BEGIN seccion_instrucciones PR_END
+        //Errores
+        | PR_PROGRAM IDENTIFICADOR:id error:e PR_BEGIN:begin seccion_instrucciones PR_END
+            {: //Secciones opcionales
+                parser.reportar_error("Error en sección de declaraciones", e);
+            :}
+        | PR_PROGRAM IDENTIFICADOR secciones_opcionales PR_BEGIN error:e PR_END:end
+            {: //Secciones de instrucciones
+                parser.reportar_error("Error en sección de instrucciones", e);
+            :}
+        | PR_PROGRAM IDENTIFICADOR PR_BEGIN error:e PR_END:end
+            {: //Secciones de instrucciones
+                parser.reportar_error("Error en sección de instrucciones", e);
+            :}
+        ;
+    // Secciones opcionales -------------------------------------------------------
+    secciones_opcionales ::= seccion_const
+        | seccion_const seccion_funciones
+        | seccion_funciones;
+    // Sección de declaración de constantes----------------------------------------
+    seccion_const ::= TIPO_CONST seccion_const1
+        ;
+    seccion_const1 ::= declaracion_const 
+        | declaracion_const seccion_const1
+        ;
+
+    declaracion_const ::=  IDENTIFICADOR OP_COMA declaracion_const
+        | IDENTIFICADOR OP_DOSPUNTOS tipo SEMI
+        //Posibles errores
+        | IDENTIFICADOR OP_COMA:coma OP_DOSPUNTOS tipo SEMI
+            {: //Hay una coma de más
+                parser.reportar_error("Caracter no esperado ,", coma);
+            :}
+        ;
+    tipo ::= TIPO_INT | TIPO_LONGINT | TIPO_SHORTINT | TIPO_CHAR | TIPO_STRING | TIPO_BOOLEAN | TIPO_REAL
+        ;
+
+    seccion_instrucciones ::= PR_VAR; 
+
 /* 'expr' puede ser una expresion que inicia por numero entero op_suma expr,
   de esa forma se realiza una suma. Tambien puede ser un numero entero, con esto
   se devuelve el valor del entero. En RESULT se almacena el valor de las acciones,
   y se pasa al siguiente nivel de la gramatica.
 */              
 
-   expr     ::=  expr:e OP_SUMA factor:f
+   /*expr     ::=  expr:e OP_SUMA factor:f
                 {:
                 RESULT = new Integer(e.intValue() + f.intValue());
                 :}
@@ -120,7 +222,7 @@ factor ::=  factor:f OP_MULT termino:e
             :}
             ;
 
-termino ::=  PARENIZQ expr:e PARENDER
+termino ::=  PARENTIZQ expr:e PARENTDER
               {:
                 RESULT = e;
               :}
@@ -129,4 +231,4 @@ termino ::=  PARENIZQ expr:e PARENDER
               {:
                 RESULT = e;
               :}
-              ; 
+              ; */
