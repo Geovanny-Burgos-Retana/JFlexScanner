@@ -1,13 +1,29 @@
 {Programa de prueba}
-PROGRAM eeee
+PROGRAM programa
 
 CONST
-dd,ff: STRING;
-ee: REAL;
-e3: INT;
+pi = 3.14;
+nombre = "Pepe";
+
+VAR
+var0: LONGINT;
+var1,var5: STRING;
+var3: INT;
+var4: ARRAY[1..100] OF STRING;
+var7: int;
+
+FUNCTION funcion1 (x:INT, y:INT) : INT
+BEGIN
+funcion1 := 0;
+END
+
+PROCEDURE funcion1 (x:int, y:int)
+BEGIN
+funcion1:=0;
+END
 
 BEGIN
 
-VARe
+VAR
 
 END

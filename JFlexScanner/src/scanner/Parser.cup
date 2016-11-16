@@ -54,9 +54,15 @@ parser code {:
         //System.out.println(m);
     }
     public void append_error(String message) {
-        int lastIndex = errores.size() - 1;
-        String texto = errores.get(lastIndex);
-        errores.set(lastIndex, texto + "\n\t" + message);
+        if (errores.size() != 0) {
+            int lastIndex = errores.size() - 1;
+            String texto = errores.get(lastIndex);
+            errores.set(lastIndex, texto + "\n\t" + message);
+        }
+        else {
+            reportar_error(message, null);
+        }
+            
     }
 
     /* Reporte de error encontrado. */
@@ -127,24 +133,31 @@ parser code {:
    no tienen tipo, pudiendo ser entero o String. */
     /*non terminal Object     expr_init, expr_list, expr_part;
     non terminal Integer    expr, factor, termino;*/
-    non terminal Object 
+    non terminal 
         //Declaración inicial
         declaracion_programa,
         //Secciones iniciales
         secciones_opcionales,
-        tipo,
-        seccion_const, seccion_const1, declaracion_const,
-        seccion_funciones,
+        tipo, array,
+        seccion_constantes, seccion_constantes1, declaracion_constante,
+            declaracion_constante1,
+        seccion_globales, seccion_globales1, declaracion_global, 
+            declaracion_global1, declaracion_global2,
+        seccion_funciones, parametros, parametros1, retorno,
+            function, function1,
+            procedure, procedure1, 
         //Cuerpo del programa
         seccion_instrucciones
-        
         ;
 
 /* Precedencia y asociación de terminales-------------------------*/
-/*precedence nonassoc DOTS, LPAR, LSQRBRK;
-
-precedence left PLUSOP, MINUSOP; 
-precedence left DIVOP; */
+precedence left PR_BEGIN, PR_END;
+precedence left ENTERO, REAL, STRING;
+precedence left OP_AND, OP_OR;
+precedence left OP_RESTA, OP_SUMA, OP_MULT, OP_MULT, OP_DIV;
+precedence left PARENTIZQ, PARENTDER;
+precedence left SEMI;
+precedence left IDENTIFICADOR;
 
 /* Gramática------------------------------------------------------*/
     start with declaracion_programa;  
@@ -158,7 +171,7 @@ precedence left DIVOP; */
             :}
         | PR_PROGRAM IDENTIFICADOR secciones_opcionales PR_BEGIN error:e PR_END:end
             {: //Secciones de instrucciones
-                parser.reportar_error("Error en sección de instrucciones", e);
+                parser.reportar_error("Error en sección de instrucciones", end);
             :}
         | PR_PROGRAM IDENTIFICADOR PR_BEGIN error:e PR_END:end
             {: //Secciones de instrucciones
@@ -166,28 +179,130 @@ precedence left DIVOP; */
             :}
         ;
     // Secciones opcionales -------------------------------------------------------
-    secciones_opcionales ::= seccion_const
-        | seccion_const seccion_funciones
-        | seccion_funciones;
+    secciones_opcionales ::= seccion_constantes seccion_globales seccion_funciones
+        | seccion_constantes
+        | seccion_globales
+        | seccion_funciones
+        | seccion_constantes seccion_globales
+        | seccion_globales seccion_funciones
+        | seccion_constantes seccion_funciones;
+
     // Sección de declaración de constantes----------------------------------------
-    seccion_const ::= TIPO_CONST seccion_const1
-        ;
-    seccion_const1 ::= declaracion_const 
-        | declaracion_const seccion_const1
+    seccion_constantes ::= TIPO_CONST seccion_constantes1;
+
+    seccion_constantes1 ::= declaracion_constante
+        | declaracion_constante seccion_constantes1
         ;
 
-    declaracion_const ::=  IDENTIFICADOR OP_COMA declaracion_const
-        | IDENTIFICADOR OP_DOSPUNTOS tipo SEMI
-        //Posibles errores
-        | IDENTIFICADOR OP_COMA:coma OP_DOSPUNTOS tipo SEMI
-            {: //Hay una coma de más
-                parser.reportar_error("Caracter no esperado ,", coma);
+    declaracion_constante ::= IDENTIFICADOR OP_IGUAL declaracion_constante1 SEMI
+        | error:e 
+            {: //si no viene un identificador pero sí :
+                parser.reportar_error("Error en declaración de constante", e);
             :}
         ;
-    tipo ::= TIPO_INT | TIPO_LONGINT | TIPO_SHORTINT | TIPO_CHAR | TIPO_STRING | TIPO_BOOLEAN | TIPO_REAL
+
+    declaracion_constante1 ::= STRING | ENTERO | REAL;
+
+    // Sección de declaración de globales----------------------------------------
+    seccion_globales ::= PR_VAR seccion_globales1
         ;
 
-    seccion_instrucciones ::= PR_VAR; 
+    seccion_globales1 ::= declaracion_global 
+        | declaracion_global seccion_globales1
+        ;
+
+    declaracion_global ::=  IDENTIFICADOR OP_COMA declaracion_global1
+        | declaracion_global1
+        ;
+
+    declaracion_global1 ::= IDENTIFICADOR OP_DOSPUNTOS declaracion_global2 SEMI
+        //Posibles errores
+        | IDENTIFICADOR error:e declaracion_global2 SEMI
+            {: 
+                parser.reportar_error("Instrucción incorrecta", e);
+            :}
+        | IDENTIFICADOR error:e OP_DOSPUNTOS declaracion_global2 SEMI
+            {: //si no viene un identificador pero sí :
+                parser.reportar_error("Esperando identificador", e);
+            :}
+        ;
+
+    declaracion_global2 ::= array | tipo 
+        | error:e
+            {: 
+                parser.reportar_error("Mala declaracion de tipo", e);
+            :}
+        ;
+
+    // Sección de funciones/procedures-------------------------------------
+    seccion_funciones ::= function | procedure
+        | function seccion_funciones
+        | procedure seccion_funciones
+        ;
+
+    function ::= PR_FUNCTION IDENTIFICADOR:id1 function1 IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+            {: 
+                if (!id1.equals(id2)) {
+                    parser.reportar_error("Error de nombre de función y valor de retorno", id2);
+                }
+            :}
+        | PR_FUNCTION error:e PR_END
+            {: 
+                parser.reportar_error("Mala declaracion de función", e);
+            :}
+        ;
+
+    function1 ::= PARENTIZQ parametros PARENTDER OP_DOSPUNTOS tipo PR_BEGIN seccion_instrucciones
+        | PARENTIZQ PARENTDER OP_DOSPUNTOS tipo PR_BEGIN seccion_instrucciones
+        | PARENTIZQ parametros PARENTDER OP_DOSPUNTOS tipo PR_BEGIN
+        | PARENTIZQ PARENTDER OP_DOSPUNTOS tipo PR_BEGIN;
+
+    procedure ::= PR_PROCEDURE IDENTIFICADOR:id1 procedure1 IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+            {: 
+                if (!id1.equals(id2)) {
+                    parser.reportar_error("Error de nombre de procedimiento y valor de retorno", id2);
+                }     
+            :}
+        | PR_PROCEDURE error:e PR_END
+            {: 
+                parser.reportar_error("Mala declaracion de procedimiento", e);
+            :}
+        ;
+
+    procedure1 ::= PARENTIZQ parametros PARENTDER PR_BEGIN seccion_instrucciones
+        | PARENTIZQ PARENTDER PR_BEGIN seccion_instrucciones
+        | PARENTIZQ parametros PARENTDER PR_BEGIN
+        | PARENTIZQ PARENTDER PR_BEGIN
+        | error:e 
+            {: 
+                parser.reportar_error("Mala declaracion de procedimiento", e);
+            :}
+        ;
+
+    retorno ::= IDENTIFICADOR | ENTERO | REAL | STRING;
+
+    parametros ::= IDENTIFICADOR OP_DOSPUNTOS tipo
+        | IDENTIFICADOR OP_DOSPUNTOS tipo parametros1
+        | error:e
+            {: 
+                parser.reportar_error("Error en lista de parámetros", e);
+            :}
+        ;
+
+    parametros1 ::= OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo
+        | OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo parametros1
+        ;
+
+    // Sección de contenido del programa (instrucciones)---------------------------------------
+    seccion_instrucciones ::= PR_VAR
+        ; 
+
+    tipo ::= TIPO_INT | TIPO_LONGINT | TIPO_SHORTINT | TIPO_CHAR | TIPO_STRING | TIPO_BOOLEAN | TIPO_REAL
+        ;
+    //ARRAY[1..100] OF STRING
+    array ::= TIPO_ARRAY OP_BRACKETIZQ ENTERO OP_PUNTO OP_PUNTO ENTERO OP_BRACKETDER PR_OF tipo
+        | TIPO_ARRAY OP_BRACKETIZQ ENTERO OP_BRACKETDER PR_OF tipo;
+ 
 
 /* 'expr' puede ser una expresion que inicia por numero entero op_suma expr,
   de esa forma se realiza una suma. Tambien puede ser un numero entero, con esto

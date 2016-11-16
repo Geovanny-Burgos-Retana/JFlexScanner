@@ -1185,7 +1185,8 @@ public class Scanner implements java_cup.runtime.Scanner {
           }
         case 128: break;
         case 41: 
-          { return symbol(sym.OP_DOSPUNTOSIGUAL);
+          { //System.out.println(yytext());
+            return symbol(sym.OP_DOSPUNTOSIGUAL);
           }
         case 129: break;
         case 42: 
@@ -1198,7 +1199,8 @@ public class Scanner implements java_cup.runtime.Scanner {
           }
         case 131: break;
         case 44: 
-          { return symbol(sym.PR_END, yytext());
+          { //System.out.println(yytext());
+            return symbol(sym.PR_END, yytext());
           }
         case 132: break;
         case 45: 
@@ -1298,7 +1300,8 @@ public class Scanner implements java_cup.runtime.Scanner {
           }
         case 156: break;
         case 69: 
-          { return symbol(sym.PR_BEGIN, yytext());
+          { //System.out.println(yytext());
+            return symbol(sym.PR_BEGIN, yytext());
           }
         case 157: break;
         case 70: 

@@ -228,6 +228,7 @@ espacio =        {salto} | [ \t\f]
 
     // Palabras reservadas-------------------------
     "BEGIN" {
+            //System.out.println(yytext());
             return symbol(sym.PR_BEGIN, yytext());
     }
     "CASE" {
@@ -243,6 +244,7 @@ espacio =        {salto} | [ \t\f]
             return symbol(sym.PR_ELSE, yytext());
     }
     "END" {
+            //System.out.println(yytext());
             return symbol(sym.PR_END, yytext());
     }
     "FALSE" {
@@ -424,6 +426,7 @@ espacio =        {salto} | [ \t\f]
             return symbol(sym.OP_BRACKETDER);
     }
     ":=" {
+            //System.out.println(yytext());
             return symbol(sym.OP_DOSPUNTOSIGUAL);
     }
     "." {
