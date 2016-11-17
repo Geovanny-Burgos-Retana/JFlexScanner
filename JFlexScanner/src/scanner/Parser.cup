@@ -14,7 +14,6 @@ parser code {:
     @Override
     public void syntax_error(Symbol cur_token){
         try{
-            //System.err.println("Error de sintaxis en el token: " + cur_token.value.toString() + ".");
             reportar_error("Error de sintaxis en token " + cur_token.value.toString() + ".", cur_token);
         }catch(Exception E){}
     }
@@ -34,7 +33,6 @@ parser code {:
         for (String error : errores) {
             System.out.println(error);
         }
-        //System.out.println(errores.size());
     }
 
     public void reportar_error(String message, Object info) {
@@ -50,9 +48,8 @@ parser code {:
         }
         m.append(" : " + message);
         errores.add(m.toString());
-        //System.err.println(m);
-        //System.out.println(m);
     }
+
     public void append_error(String message) {
         if (errores.size() != 0) {
             int lastIndex = errores.size() - 1;
@@ -124,7 +121,7 @@ parser code {:
         //Identificador
         IDENTIFICADOR;
     terminal Integer    ENTERO;
-    terminal Double 	REAL;
+    terminal Double     REAL;
     terminal String     STRING;
 
 /* No terminales-------------------------------------------------- 
@@ -138,20 +135,28 @@ parser code {:
         declaracion_programa,
         //Secciones iniciales
         secciones_opcionales,
-        tipo, array,
+        tipo, array, operador_aritmetico, operador_booleano,
         seccion_constantes, seccion_constantes1, declaracion_constante,
             declaracion_constante1,
         seccion_globales, seccion_globales1, declaracion_global, 
             declaracion_global1, declaracion_global2,
         seccion_funciones, parametros, parametros1, retorno,
-            function, function1,
-            procedure, procedure1, 
+            function, 
+            procedure, 
         //Cuerpo del programa
-        seccion_instrucciones
+        seccion_instrucciones, seccion_instrucciones1,
+        condicion_booleana, condicion_booleana1, condicion_booleana2, 
+        condicion_not, cuerpo_estructura_control, cuerpo_estructura_control1, sentencia,
+            bloque_while,
+            bloque_for,
+            bloque_repeat,
+            bloque_case, bloque_constantes_case, bloque_constantes_case1,
+            bloque_if, bloque_if1, bloque_if2
         ;
 
 /* Precedencia y asociación de terminales-------------------------*/
 precedence left PR_BEGIN, PR_END;
+precedence left PR_IF, PR_ELSE;
 precedence left ENTERO, REAL, STRING;
 precedence left OP_AND, OP_OR;
 precedence left OP_RESTA, OP_SUMA, OP_MULT, OP_MULT, OP_DIV;
@@ -201,8 +206,6 @@ precedence left IDENTIFICADOR;
             :}
         ;
 
-    declaracion_constante1 ::= STRING | ENTERO | REAL;
-
     // Sección de declaración de globales----------------------------------------
     seccion_globales ::= PR_VAR seccion_globales1
         ;
@@ -240,11 +243,18 @@ precedence left IDENTIFICADOR;
         | procedure seccion_funciones
         ;
 
-    function ::= PR_FUNCTION IDENTIFICADOR:id1 function1 IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+    function ::= PR_FUNCTION IDENTIFICADOR:id1 PARENTIZQ parametros PARENTDER OP_DOSPUNTOS 
+        tipo PR_BEGIN seccion_instrucciones IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
             {: 
                 if (!id1.equals(id2)) {
                     parser.reportar_error("Error de nombre de función y valor de retorno", id2);
                 }
+            :}
+        | PR_FUNCTION IDENTIFICADOR:id1 PARENTIZQ parametros PARENTDER error:e PR_BEGIN
+        seccion_instrucciones IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+            {: 
+                //parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Las funciones deben de tener valor de retorno");
             :}
         | PR_FUNCTION error:e PR_END
             {: 
@@ -252,56 +262,157 @@ precedence left IDENTIFICADOR;
             :}
         ;
 
-    function1 ::= PARENTIZQ parametros PARENTDER OP_DOSPUNTOS tipo PR_BEGIN seccion_instrucciones
-        | PARENTIZQ PARENTDER OP_DOSPUNTOS tipo PR_BEGIN seccion_instrucciones
-        | PARENTIZQ parametros PARENTDER OP_DOSPUNTOS tipo PR_BEGIN
-        | PARENTIZQ PARENTDER OP_DOSPUNTOS tipo PR_BEGIN;
-
-    procedure ::= PR_PROCEDURE IDENTIFICADOR:id1 procedure1 IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+    procedure ::= PR_PROCEDURE IDENTIFICADOR:id1 PARENTIZQ parametros PARENTDER 
+        PR_BEGIN seccion_instrucciones IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
             {: 
                 if (!id1.equals(id2)) {
                     parser.reportar_error("Error de nombre de procedimiento y valor de retorno", id2);
                 }     
             :}
+        | PR_PROCEDURE IDENTIFICADOR PARENTIZQ parametros PARENTDER error:e PR_BEGIN 
+        seccion_instrucciones IDENTIFICADOR:id2 OP_DOSPUNTOSIGUAL retorno SEMI PR_END
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Los procedimientos no pueden tener valor de retorno");
+            :}
         | PR_PROCEDURE error:e PR_END
             {: 
-                parser.reportar_error("Mala declaracion de procedimiento", e);
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Mala declaracion de procedimiento");
             :}
         ;
 
-    procedure1 ::= PARENTIZQ parametros PARENTDER PR_BEGIN seccion_instrucciones
-        | PARENTIZQ PARENTDER PR_BEGIN seccion_instrucciones
-        | PARENTIZQ parametros PARENTDER PR_BEGIN
-        | PARENTIZQ PARENTDER PR_BEGIN
+    parametros ::= //IDENTIFICADOR OP_DOSPUNTOS tipo
+        | IDENTIFICADOR OP_DOSPUNTOS tipo parametros1
+        | error:e
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Error en lista de parámetros");
+            :}
+        ;
+
+    parametros1 ::= //OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo
+        | OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo parametros1;
+
+    // Sección de contenido del programa (instrucciones)---------------------------------------
+    seccion_instrucciones ::= | seccion_instrucciones1 seccion_instrucciones;
+
+    seccion_instrucciones1 ::= bloque_while | bloque_if | bloque_case | bloque_repeat | bloque_for
         | error:e 
             {: 
-                parser.reportar_error("Mala declaracion de procedimiento", e);
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Error en el cuerpo de instrucciones");
+            :}
+        ;
+
+    // Sección de estructuras de control ------------------------------------------------------
+    bloque_while ::= PR_WHILE PARENTIZQ condicion_booleana PARENTDER PR_DO
+        PR_BEGIN cuerpo_estructura_control PR_END
+        | PR_WHILE error:e PR_DO PR_BEGIN cuerpo_estructura_control PR_END
+            {: 
+                //parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Falta expresión en while");
+            :}
+        ;
+
+    bloque_for ::= PR_FOR IDENTIFICADOR OP_DOSPUNTOSIGUAL ENTERO PR_TO ENTERO PR_DO
+        PR_BEGIN cuerpo_estructura_control PR_END
+        | PR_FOR error:e PR_TO ENTERO PR_DO
+        PR_BEGIN cuerpo_estructura_control PR_END
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Expresión no es una asignación");
+            :}
+        | PR_FOR IDENTIFICADOR OP_DOSPUNTOSIGUAL ENTERO error:e ENTERO PR_DO
+        PR_BEGIN cuerpo_estructura_control PR_END
+            {: 
+                //parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Falta palabra reservada TO en for");
+            :}
+        ;
+
+    bloque_repeat ::= PR_REPEAT cuerpo_estructura_control PR_UNTIL condicion_booleana
+        /*| PR_REPEAT cuerpo_estructura_control error:e condicion_booleana
+            {: 
+                //parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Falta palabra reservada UNTIL en repeat");
+            :}*/
+        ;
+
+    bloque_if ::= PR_IF condicion_booleana PR_THEN sentencia SEMI PR_ELSE sentencia SEMI
+        | error:e SEMI
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Error en if");
+            :}
+        ;
+
+    bloque_case ::= PR_CASE IDENTIFICADOR PR_OF bloque_constantes_case PR_ELSE sentencia SEMI;
+
+    bloque_constantes_case ::= | bloque_constantes_case1 bloque_constantes_case;
+
+    bloque_constantes_case1 ::= declaracion_constante1 OP_DOSPUNTOS cuerpo_estructura_control
+        | declaracion_constante1 error:e cuerpo_estructura_control
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Falta caracter : en case");
+            :}
+        ;
+
+    //bloque_if1 ::= | PR_ELSE sentencia;
+
+
+    //Parte de la declaración de constantes, pero que también sirve aquí y por eso la bajé
+    declaracion_constante1 ::= STRING | ENTERO | REAL;
+
+    // Sección de cosas que toda la gramática utiliza-------------------------------------
+    condicion_booleana ::= condicion_booleana1 | condicion_not 
+        | PARENTIZQ condicion_booleana1 PARENTDER operador_booleano PARENTIZQ condicion_booleana1 PARENTDER
+        | PR_TRUE | PR_FALSE
+        | error:e 
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol) CUP$Parser$stack.peek());
+                parser.append_error("Error en condición booleana");
+            :}
+        ;
+
+    condicion_not ::= OP_NOT IDENTIFICADOR 
+        | OP_NOT PARENTIZQ condicion_booleana1 PARENTDER;
+
+    condicion_booleana1 ::= condicion_booleana2 operador_booleano condicion_booleana2;
+
+    condicion_booleana2 ::= IDENTIFICADOR | ENTERO | REAL;
+
+    cuerpo_estructura_control ::= | cuerpo_estructura_control1 cuerpo_estructura_control;
+
+    cuerpo_estructura_control1 ::= sentencia SEMI | bloque_while | bloque_if | bloque_case 
+        | bloque_repeat | bloque_for
+        ;
+
+    sentencia ::= IDENTIFICADOR OP_DOSPUNTOSIGUAL retorno //SEMI
+        | IDENTIFICADOR OP_SUMASUMA //SEMI
+        | IDENTIFICADOR OP_MENOSMENOS //SEMI
+        | IDENTIFICADOR OP_DOSPUNTOSIGUAL retorno operador_aritmetico retorno //SEMI
+        | IDENTIFICADOR error:e //SEMI
+            {: 
+                parser.syntax_error((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top));
+                parser.append_error("Error en sentencia");
             :}
         ;
 
     retorno ::= IDENTIFICADOR | ENTERO | REAL | STRING;
-
-    parametros ::= IDENTIFICADOR OP_DOSPUNTOS tipo
-        | IDENTIFICADOR OP_DOSPUNTOS tipo parametros1
-        | error:e
-            {: 
-                parser.reportar_error("Error en lista de parámetros", e);
-            :}
-        ;
-
-    parametros1 ::= OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo
-        | OP_COMA IDENTIFICADOR OP_DOSPUNTOS tipo parametros1
-        ;
-
-    // Sección de contenido del programa (instrucciones)---------------------------------------
-    seccion_instrucciones ::= PR_VAR
-        ; 
 
     tipo ::= TIPO_INT | TIPO_LONGINT | TIPO_SHORTINT | TIPO_CHAR | TIPO_STRING | TIPO_BOOLEAN | TIPO_REAL
         ;
     //ARRAY[1..100] OF STRING
     array ::= TIPO_ARRAY OP_BRACKETIZQ ENTERO OP_PUNTO OP_PUNTO ENTERO OP_BRACKETDER PR_OF tipo
         | TIPO_ARRAY OP_BRACKETIZQ ENTERO OP_BRACKETDER PR_OF tipo;
+
+    operador_aritmetico ::= OP_SUMA | OP_RESTA | OP_MULT | OP_DIVISION | OP_MOD | PARENTIZQ 
+        | PARENTDER | OP_MASIGUAL | OP_MENOSIGUAL | OP_MULTIGUAL | OP_DIVIGUAL | OP_DIV ;
+
+    operador_booleano ::= OP_IGUAL | OP_MAYORIGUAL | OP_MAYOR | OP_MENORIGUAL | OP_MENOR
+        | OP_MENORMAYOR | OP_OR | OP_AND ;
  
 
 /* 'expr' puede ser una expresion que inicia por numero entero op_suma expr,
